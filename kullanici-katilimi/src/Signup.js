@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import * as Yup from "yup";
 import axios from "axios";
+import Register from "./Register.js";
 
 const formSchema = Yup.object().shape({
-  name: Yup.string().required("Name is Required"),
+  name: Yup.string()
+    .required("Name is required")
+    .min(3, "Must be at least 3 characters long"),
   email: Yup.string()
-    .email("Must be a valid email address.")
-    .required("Must include email address."),
+    .email("Must be a valid email address")
+    .required("Must include email address"),
   password: Yup.string()
-    .required("Password is Required")
-    .min(6, "Passwords must be at least 6 characters long."),
+    .required("Password is required")
+    .min(6, "Password must be at least 6 characters long"),
   terms: Yup.boolean().oneOf([true], "You must accept Terms and Conditions"),
 });
 
@@ -26,79 +29,58 @@ function Signup() {
     name: "",
     email: "",
     password: "",
-    terms: "",
+    terms: false,
+    isValid: false,
   });
+  const [registeredUser, setRegisteredUser] = useState([]);
+  const [buttonOpen, setButtonOpen] = useState(true);
 
   useEffect(() => {
-    formSchema.isValid(formState).then((valid) => {
-      setFormState((prevState) => ({ ...prevState, isValid: valid }));
-    });
+    formSchema.isValid(formState).then((valid) => setButtonOpen(!valid));
   }, [formState]);
-  const checkboxChange = (e) => {
-    const { name, checked } = e.target;
-
-    Yup.reach(formSchema, name)
-      .validate(checked)
-      .then(() => {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          [name]: "",
-        }));
-      })
-      .catch((err) => {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          [name]: err.message,
-        }));
-      });
-
-    setFormState((prevFormState) => ({
-      ...prevFormState,
-      [name]: checked,
-    }));
-  };
-
-  const inputChange = (e) => {
-    const { name, value } = e.target;
-
+  function checkErrors(name, value) {
     Yup.reach(formSchema, name)
       .validate(value)
       .then(() => {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          [name]: "",
-        }));
+        setErrors((prevState) => ({ ...prevState, [name]: "" }));
       })
       .catch((err) => {
-        setErrors((prevErrors) => ({
-          ...prevErrors,
-          [name]: err.message,
-        }));
+        setErrors((prevState) => ({ ...prevState, [name]: err.errors[0] }));
       });
+  }
 
-    setFormState((prevFormState) => ({
-      ...prevFormState,
-      [name]: value,
-    }));
-  };
+  function handleChange(event) {
+    const { name, value, checked } = event.target;
+    const newValue = name === "terms" ? checked : value;
+    checkErrors(name, newValue);
+    setFormState((prevState) => ({ ...prevState, [name]: newValue }));
+  }
 
-  const formSubmit = (e) => {
-    e.preventDefault();
-    console.log("submitted");
+  function handleSubmit(event) {
+    event.preventDefault();
+    //console.log(formState);
 
     axios
       .post("https://reqres.in/api/users", formState)
-      .then((res) => {
-        console.log("success", res);
-      })
+      .then((response) => setRegisteredUser([...registeredUser, response.data]))
       .catch((err) => {
         console.log("err", err.message);
       });
-  };
+  }
+  function resetForm() {
+    setFormState({
+      name: "",
+      email: "",
+      password: "",
+      terms: false,
+      isValid: false,
+    });
+  }
+
   return (
     <div className="container">
       <h2>SIGN UP</h2>
-      <form onSubmit={formSubmit}>
+      <form onSubmit={handleSubmit}>
         <label htmlFor="name">Name, username</label>
         <br />
         <input
@@ -107,8 +89,9 @@ function Signup() {
           name="name"
           placeholder="Will Smith"
           value={formState.name}
-          onChange={inputChange}
+          onChange={handleChange}
         ></input>
+        {errors.name.length > 0 && <p className="error">{errors.name}</p>}
         <br />
         <label htmlFor="email">E-mail</label>
         <br />
@@ -118,7 +101,7 @@ function Signup() {
           name="email"
           placeholder="example@gmail.com"
           value={formState.email}
-          onChange={inputChange}
+          onChange={handleChange}
         ></input>
         {errors.email.length > 0 && <p className="error">{errors.email}</p>}
         <br />
@@ -130,7 +113,7 @@ function Signup() {
           name="password"
           placeholder="Password"
           value={formState.password}
-          onChange={inputChange}
+          onChange={handleChange}
         ></input>
         {errors.password.length > 0 && (
           <p className="error">{errors.password}</p>
@@ -144,12 +127,21 @@ function Signup() {
           type="checkbox"
           id="checkbox"
           name="terms"
+          value={formState.terms}
           checked={formState.terms}
-          onChange={checkboxChange}
+          onChange={handleChange}
         ></input>
         <br />
         <br />
-        <button type="submit">Register</button>
+        <div className="butonlar">
+          <button type="submit" disabled={buttonOpen} onClick={handleSubmit}>
+            Register
+          </button>
+          <button type="button" onClick={resetForm}>
+            Formu sıfırla
+          </button>
+        </div>
+        <Register registeredUser={registeredUser} />
       </form>
     </div>
   );
